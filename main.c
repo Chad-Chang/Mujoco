@@ -18,6 +18,7 @@ void state_init(const mjModel *m, mjData *d, ParamModel_ *model, int dof)
         model->qd[i] = 0;
         model->qdd[i] = 0;
         model->ctrl_input[i] = 0;
+        //asdf
     }
 }
 void update_state(const mjModel *m, mjData *d, ParamModel_ *model, int dof)
