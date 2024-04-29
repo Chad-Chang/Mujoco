@@ -20,12 +20,26 @@
 const double t_hold = 0.5; 
 const double t_swing1 = 1;
 const double t_swing2 = 1;
+double err_old=  0; double err = 0;  
+double ref = -pi/2;
+double u_c = 0;
+double dense_M[ndof * ndof] = { 0 };
+double d_hat[2] = {0}; // disturbance
+double theta[3] = {0}; // output angle from encoder
+double theta_acc[3] = {0};
+double u_d[3] = {0}; // uc_- u_d
+double theta_vel[3] = {0};
+double dist_freq = 20;
+// void update(){} // parameter update
+// double tau = 1/(2*pi*30);
+double LPF_freq = 20;
+double perturb; // disturbance
+float amplitude_perturb = 5;
+bool dob_switch = 1; 
 
 
-
-char datapath[] = "data.csv";
 char filename[] = "double_pendulum.xml";
-char datafile[] = "data.csv";
+char datafile[] = "data/DOB.csv";
 
 // MuJoCo data structures
 mjModel* m = NULL;                  // MuJoCo model
@@ -42,7 +56,7 @@ double simend = 5;
 // Data Writing
 FILE* fid;
 int loop_index = 0;
-const int data_frequency = 10; // frequency at which data is written to a file
+const int data_frequency = 4; // frequency at which data is written to a file
 
 // mouse interaction
 bool button_left = false;
@@ -50,8 +64,8 @@ bool button_middle = false;
 bool button_right = false;
 double lastx = 0;
 double lasty = 0;
-
-
+double Ts = 0.0001;
+double cutoff = 150;
 
 // keyboard callback
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods)
@@ -150,8 +164,8 @@ void init_save_data() // csv파일의 데이터 명을 지정하는 함수 -> �
 {
     //write name of the variable here (header)
     fprintf(fid, "t, ");
-    fprintf(fid, "PE, KE, TE, ");
-    fprintf(fid, "q1, q2, ");
+    fprintf(fid, "dist, e_dist, dist_err, "); // disturbace error
+    fprintf(fid, "input, output, error"); // reference error
 
     //Don't remove the newline
     fprintf(fid, "\n");
@@ -160,12 +174,15 @@ void init_save_data() // csv파일의 데이터 명을 지정하는 함수 -> �
 ////***************************
 ////This function is called at a set frequency, put data here
 void save_data(const mjModel* m, mjData* d) 
-{
+{   
+    // double q_buf =0 ; 
+    // q_buf = d-> qpos[0];
     //data here should correspond to headers in init_save_data()
     //seperate data by a space %f followed by space
     fprintf(fid, "%f, ", d->time);
-    fprintf(fid, "%f, %f, %f, ", d->energy[0], d->energy[1], d->energy[0] + d->energy[1]);
-    fprintf(fid, "%f, %f ", d->qpos[0], d->qpos[1]);
+    fprintf(fid, "%f, %f, %f, ", perturb, d_hat[0], perturb- d_hat[0]);
+    fprintf(fid, "%f, %f, %f, ", ref,d-> qpos[0], ref - d-> qpos[0]);
+
     //Don't remove the newline
     fprintf(fid, "\n");
 }
@@ -184,11 +201,31 @@ double tustin_derivative(double input, double input_old, double output_old, doub
     return output;
 }
 // 모터 위치제어에 필요한 2차 low pass filter * inertia
-double tustin_2nd_derivative(double input_old2, double output_old1, double output_old2, double J,double cutoff_freq, double damping)
+// double tustin_2nd_derivative(double input_old2, double output_old1, double output_old2, double J,double cutoff_freq, double damping)
+// {
+//     double wc= 2*pi*cutoff_freq;
+//     double Q = 1/(2*damping);
+//     double output = 0;
+//     output = J*input_old2-1/(Q*wc)*output_old1-1/(pow(wc,2))*output_old2;
+//     return output;
+// }
+
+double t_k =0 ;
+double t_kold= 0 ;
+int contol_loop = 4; // 0.0001ms초를 보장해주는 놈
+void loop_tcheck(){ // loop time check해주는 놈
+    t_k = d->time;
+    printf("%f \n", t_k-t_kold);
+    t_kold = t_k;
+}
+
+// 1 / (tau*s+1)
+double lowpassfilter(double input, double input_old, double output_old, double cutoff_freq) 
 {
-    double wc= 2*pi*cutoff_freq;
-    double Q = 1/(2*damping);
+    double time_const = 1 / (2 * pi * cutoff_freq);
     double output = 0;
-    output = J*input_old2-1/(Q*wc)*output_old1-1/(pow(wc,2))*output_old2;
+
+    output = (Ts * (input + input_old) - (Ts - 2 * time_const) * output_old) / (Ts + 2 * time_const);
+
     return output;
 }

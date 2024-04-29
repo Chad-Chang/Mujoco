@@ -1,7 +1,7 @@
 clear all
 clc
 close all
-filename = 'data.csv';
+filename = 'DOB.csv';
 
 T = readtable(filename); %check T.Properties
 VariableNames = T.Properties.VariableNames;
