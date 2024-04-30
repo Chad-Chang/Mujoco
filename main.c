@@ -33,17 +33,16 @@ void update_state(const mjModel *m, mjData *d, ParamModel_ *model, int dof)
 }
 
 ParamModel_ dPendulum;
-int vel_count = 0;
-int acc_count = 0;
 double alpha[3] = {0};
 double beta[3] = {0};
+
 void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
 {
 // single pendulum
     if(loop_index % contol_loop ==0) // sampling time 0.0001
     {   
-        vel_count += 1;
-        acc_count += 1;
+        double u_g = 0.5*G*sin(d->qpos[0]);
+        // double u_g  = -5;
         perturb = amplitude_perturb*sin(dist_freq*2*pi*d->time);
         // loop_tcheck();
         err = ref - theta[0];
@@ -51,71 +50,17 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
             // control torque 
         u_c = pid1.compute_PID(err,err_old, Ts, cutoff);
 
-        
         u_d[0] = u_c - d_hat[0];
         
-
-        d->ctrl[0] = u_d[0] + perturb;
+        d->ctrl[0] = u_d[0] + perturb- u_g;
         err_old = err;
         pid1.update_PID();
 
-
         theta[0] = d->qpos[0];
-
         theta_vel[0] = tustin_derivative(theta[0],theta[1], theta_vel[1], LPF_freq);
-
         theta_acc[0] = tustin_derivative(theta_vel[0],theta_vel[1], theta_acc[1], LPF_freq);
-
         alpha[0] = lowpassfilter(u_d[0], u_d[1], alpha[1], LPF_freq);
         beta[0] = lowpassfilter(alpha[0],alpha[1], beta[1], LPF_freq);
-        
-        
-        
-        // if(vel_count>2)
-        // {
-        
-        // theta_vel[0] = (tau*(theta[0]-theta[1])-(Ts-2*tau)*theta_vel[1])/(2*tau+Ts);
-        // }
-
-        // if(acc_count>3)
-        // {
-        
-        // theta_acc[0] = (tau*(theta_vel[0]-theta_vel[1])-(Ts-2*tau)*theta_acc[1])/(2*tau+Ts);
-        // }
-        // theta_acc[0] = (4*(theta[2]-2*theta[1]+theta[0]) + (8*pow(tau,2)-2*pow(Ts,2))*theta[1]-(pow(Ts,2)-4*tau*Ts+4*pow(tau,2)))/(pow(Ts,2)+4*tau*Ts+4*pow(tau,2));
-        // theta_acc[0] = 
-
-        
-    // 미분마다 low pass filter 씌운 놈
-        // theta_vel[2] = theta_vel[1];
-        // theta_vel[1] = theta_vel[0];
-        // theta_vel[0] = (2*(theta[0]-theta[1])-(Ts-2*tau)*theta_vel[1])/(2*tau + Ts);
-
-        // theta_acc[2] = theta_acc[1];
-        // theta_acc[1] = theta_acc[0];
-        // theta_acc[0] = (-(Ts-2*tau)*theta_acc[1]+2*(theta_vel[0]-theta_vel[1]))/(2*tau +Ts);
-
-    // 필터랑 미분 한번에 한놈
-
-    // 그냥 미분만 해준놈(필터 없음)
-        // if(vel_count > 2)
-        // {
-        //     theta_vel[2] = theta_vel[1]; theta_vel[1] = theta_vel[0];
-        //     theta_vel[0] = (2/Ts)*(theta[0]-theta[1]) - theta_vel[1];
-        // }
-        
-        // if(acc_count > 3)
-        // {
-        //     theta_acc[2] = theta_acc[1]; 
-        //     theta_acc[1] = theta_acc[0];
-        //     theta_acc[0] = 4/pow(Ts,2)*(theta[0]-2*theta[1]+theta[2])-(2/Ts)*(theta_vel[1]-theta_vel[2])-theta_acc[1];
-        // }
-        // if(acc_count < 3)
-        //     printf("before theta_acc = %f\n",theta_acc[0]);
-        // printf("dist_error  = %f\n", perturb - d_hat[0]);
-        // printf("IO error = %f\n",ref-d->qpos[0]);
-
-
 
         mj_fullM(m, dense_M, d->qM);
         double M[ndof][ndof] = { 0 };   // 2x2 inertia matrix -> 알아서 계산해줌.
@@ -124,18 +69,10 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
         M[1][0] = dense_M[2];
         M[1][1] = dense_M[3];
 
-
-        
-        // if(acc_count >= 3)
-        //     printf("After theta_acc = %f\n",theta_acc[0]);
-
-    
-        // printf("M = %f\n", M[0][0]);
-
-        // d_hat[1]= d_hat[0];
         if(dob_switch)
                 {
-                    d_hat[0] = M[0][0]*theta_acc[0]-beta[0];
+                    // d_hat[0] = (0.25+0.5*M[0][0])*theta_acc[0]-beta[0];
+                    d_hat[0] = (M[0][0])*theta_acc[0]-beta[0];
                     
                     theta[2] = theta[1]; theta[1] = theta[0];
                     theta_vel[2] = theta_vel[1]; theta_vel[1] = theta_vel[0];
@@ -145,8 +82,6 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
                     u_d[2] = u_d[1]; u_d[1] = u_d[0];
                     
                 }
-            // else
-            //     printf("d_ = %f\n", d_hat[0]);
 
     }
 

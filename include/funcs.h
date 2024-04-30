@@ -14,6 +14,7 @@
 #define fsm_swing1 1
 #define fsm_swing2 2
 #define fsm_stop 3
+#define G 9.81
 
 #define pi 3.141592
 
@@ -29,14 +30,11 @@ double theta[3] = {0}; // output angle from encoder
 double theta_acc[3] = {0};
 double u_d[3] = {0}; // uc_- u_d
 double theta_vel[3] = {0};
-double dist_freq = 20;
-// void update(){} // parameter update
-// double tau = 1/(2*pi*30);
-double LPF_freq = 20;
+double dist_freq = 1;
+double LPF_freq = 40;
 double perturb; // disturbance
 float amplitude_perturb = 5;
 bool dob_switch = 1; 
-
 
 char filename[] = "double_pendulum.xml";
 char datafile[] = "data/DOB.csv";
@@ -165,7 +163,7 @@ void init_save_data() // csv파일의 데이터 명을 지정하는 함수 -> �
     //write name of the variable here (header)
     fprintf(fid, "t, ");
     fprintf(fid, "dist, e_dist, dist_err, "); // disturbace error
-    fprintf(fid, "input, output, error"); // reference error
+    fprintf(fid, "input, output, error, gravity compensation"); // reference error
 
     //Don't remove the newline
     fprintf(fid, "\n");
@@ -175,22 +173,16 @@ void init_save_data() // csv파일의 데이터 명을 지정하는 함수 -> �
 ////This function is called at a set frequency, put data here
 void save_data(const mjModel* m, mjData* d) 
 {   
-    // double q_buf =0 ; 
-    // q_buf = d-> qpos[0];
     //data here should correspond to headers in init_save_data()
     //seperate data by a space %f followed by space
     fprintf(fid, "%f, ", d->time);
     fprintf(fid, "%f, %f, %f, ", perturb, d_hat[0], perturb- d_hat[0]);
-    fprintf(fid, "%f, %f, %f, ", ref,d-> qpos[0], ref - d-> qpos[0]);
+    fprintf(fid, "%f, %f, %f, %f, ", ref,d-> qpos[0], ref - d-> qpos[0],0.5*G*sin(d->qpos[0]));
 
     //Don't remove the newline
     fprintf(fid, "\n");
 }
 
-//void init_controller(const mjModel* m, mjData* D)
-//{
- //fsm_state = fsm_hold;   
-//}
 double tustin_derivative(double input, double input_old, double output_old, double cutoff_freq)
 {
     double time_const = 1 / (2 * pi * cutoff_freq);
@@ -200,20 +192,12 @@ double tustin_derivative(double input, double input_old, double output_old, doub
 
     return output;
 }
-// 모터 위치제어에 필요한 2차 low pass filter * inertia
-// double tustin_2nd_derivative(double input_old2, double output_old1, double output_old2, double J,double cutoff_freq, double damping)
-// {
-//     double wc= 2*pi*cutoff_freq;
-//     double Q = 1/(2*damping);
-//     double output = 0;
-//     output = J*input_old2-1/(Q*wc)*output_old1-1/(pow(wc,2))*output_old2;
-//     return output;
-// }
 
 double t_k =0 ;
 double t_kold= 0 ;
 int contol_loop = 4; // 0.0001ms초를 보장해주는 놈
-void loop_tcheck(){ // loop time check해주는 놈
+void loop_tcheck()// loop time check해주는 놈
+{ 
     t_k = d->time;
     printf("%f \n", t_k-t_kold);
     t_kold = t_k;

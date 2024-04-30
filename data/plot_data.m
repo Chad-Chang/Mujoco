@@ -6,7 +6,7 @@ filename = 'data/DOB.csv';
 T = readtable(filename); %check T.Properties
 VariableNames = T.Properties.VariableNames;
 
-Arr = table2array(T(:,1:7));
+Arr = table2array(T(:,1:8));
 [m,n] = size(Arr);
 
 % disturbance estimation
@@ -15,8 +15,10 @@ subplot(2,1,1);
 plot(Arr(:,1),Arr(:,2),'b-');
 hold on 
 plot(Arr(:,1),Arr(:,3),'r-');
+hold on 
+plot(Arr(:,1),Arr(:,8),'k-');
 grid on 
-legend("dist", "e-dist" );
+legend("dist", "e-dist", "gravity term"  );
 title("disturbace and estimated disturbance")
 ylim([-10,10]);
 
