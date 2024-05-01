@@ -41,23 +41,21 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
 // single pendulum
     if(loop_index % contol_loop ==0) // sampling time 0.0001
     {   
-        double u_g = 0.5*G*sin(d->qpos[0]);
-        // double u_g  = -5;
+        double u_g = -0.5*G*sin(d->qpos[0]);
         perturb = amplitude_perturb*sin(dist_freq*2*pi*d->time);
         // loop_tcheck();
         err = ref - theta[0];
-        pid1.set_gain(7,0,1.3);
+        pid1.set_gain(15,0,1.5);
             // control torque 
         u_c = pid1.compute_PID(err,err_old, Ts, cutoff);
-
-        u_d[0] = u_c - d_hat[0];
+        u_d[0] = u_c -d_hat[0];//- d_hat[0];
         
-        d->ctrl[0] = u_d[0] + perturb- u_g;
+        d->ctrl[0] = u_d[0] + perturb +u_g;//u_d[0] ;
         err_old = err;
         pid1.update_PID();
 
         theta[0] = d->qpos[0];
-        theta_vel[0] = tustin_derivative(theta[0],theta[1], theta_vel[1], LPF_freq);
+        theta_vel[0] = tustin_derivative(theta[0],theta[1], theta_vel[1], 300);
         theta_acc[0] = tustin_derivative(theta_vel[0],theta_vel[1], theta_acc[1], LPF_freq);
         alpha[0] = lowpassfilter(u_d[0], u_d[1], alpha[1], LPF_freq);
         beta[0] = lowpassfilter(alpha[0],alpha[1], beta[1], LPF_freq);
@@ -73,6 +71,8 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
                 {
                     // d_hat[0] = (0.25+0.5*M[0][0])*theta_acc[0]-beta[0];
                     d_hat[0] = (M[0][0])*theta_acc[0]-beta[0];
+                    // d_hat[0] = (M[0][0])*theta_acc[0]-u_g- beta[0];
+                    
                     
                     theta[2] = theta[1]; theta[1] = theta[0];
                     theta_vel[2] = theta_vel[1]; theta_vel[1] = theta_vel[0];
@@ -162,7 +162,7 @@ int main(int argc, const char** argv)
     init_save_data();
 
 // 초기 각도 입력
-    d->qpos[0] = pi/3;   // joint 1 - HFE
+    d->qpos[0] = -pi/3;   // joint 1 - HFE
     // d -> qpos[1] = pi/2;
     //d->qpos[1] = 0.5;   // joint 2 - KFE
     theta[0] = d->qpos[0];

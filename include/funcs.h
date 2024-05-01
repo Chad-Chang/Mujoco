@@ -31,7 +31,7 @@ double theta_acc[3] = {0};
 double u_d[3] = {0}; // uc_- u_d
 double theta_vel[3] = {0};
 double dist_freq = 1;
-double LPF_freq = 40;
+double LPF_freq = 30;
 double perturb; // disturbance
 float amplitude_perturb = 5;
 bool dob_switch = 1; 
