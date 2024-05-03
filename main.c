@@ -35,22 +35,38 @@ void update_state(const mjModel *m, mjData *d, ParamModel_ *model, int dof)
 ParamModel_ dPendulum;
 double alpha[3] = {0};
 double beta[3] = {0};
+bool fob = 1; 
+
+// double J[2] = {0}; // polar coordinate로 변환 
+double J_trans_inv[2] = {0}; 
+double D[2] =  {0};
+
+double ctrl_torque[2] = {0};
+double ctrl_torque_s1[2]=  {0};
+double ctrl_torque_s2[2]=  {0};
+double mass = 1; 
+
 
 void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
 {
+    double u_g = 0.5*G*sin(d->qpos[0]);
 // single pendulum
     if(loop_index % contol_loop ==0) // sampling time 0.0001
     {   
-        double u_g = -0.5*G*sin(d->qpos[0]);
+        
         perturb = amplitude_perturb*sin(dist_freq*2*pi*d->time);
         // loop_tcheck();
+        // perturb = 0;
         err = ref - theta[0];
         pid1.set_gain(15,0,1.5);
             // control torque 
         u_c = pid1.compute_PID(err,err_old, Ts, cutoff);
-        u_d[0] = u_c -d_hat[0];//- d_hat[0];
-        
-        d->ctrl[0] = u_d[0] + perturb +u_g;//u_d[0] ;
+        u_d[0] = u_c-d_hat[0];
+        // u_d[0] = 0;
+        d->ctrl[0] = u_d[0] + perturb - u_g;//u_d[0] ;
+        // ctrl_torque[0] = d->ctrl[0];
+        ctrl_torque[0]= u_d[0];
+
         err_old = err;
         pid1.update_PID();
 
@@ -58,8 +74,8 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
         theta_vel[0] = tustin_derivative(theta[0],theta[1], theta_vel[1], 300);
         theta_acc[0] = tustin_derivative(theta_vel[0],theta_vel[1], theta_acc[1], LPF_freq);
         alpha[0] = lowpassfilter(u_d[0], u_d[1], alpha[1], LPF_freq);
-        beta[0] = lowpassfilter(alpha[0],alpha[1], beta[1], LPF_freq);
 
+        // 
         mj_fullM(m, dense_M, d->qM);
         double M[ndof][ndof] = { 0 };   // 2x2 inertia matrix -> 알아서 계산해줌.
         M[0][0] = dense_M[0];
@@ -68,21 +84,31 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
         M[1][1] = dense_M[3];
 
         if(dob_switch)
-                {
-                    // d_hat[0] = (0.25+0.5*M[0][0])*theta_acc[0]-beta[0];
-                    d_hat[0] = (M[0][0])*theta_acc[0]-beta[0];
-                    // d_hat[0] = (M[0][0])*theta_acc[0]-u_g- beta[0];
-                    
-                    
-                    theta[2] = theta[1]; theta[1] = theta[0];
-                    theta_vel[2] = theta_vel[1]; theta_vel[1] = theta_vel[0];
-                    theta_acc[2] = theta_acc[1]; theta_acc[1] = theta_acc[0];
-                    alpha[1] = alpha[0];
-                    beta[1] = beta[0];
-                    u_d[2] = u_d[1]; u_d[1] = u_d[0];
-                    
-                }
+        {
+            // d_hat[0] = (0.25+0.5*M[0][0])*theta_acc[0]-beta[0];
+            d_hat[0] = (M[0][0])*theta_acc[0]-alpha[0];
+        }
 
+        if(fob)
+        {
+            J_trans_inv[0] = cos(d->qpos[0])/l_force;
+            J_trans_inv[1] = -sin(d->qpos[0])/l_force;
+            ctrl_torque_s1[0] = lowpassfilter(ctrl_torque[0],ctrl_torque[1],ctrl_torque_s1[1],LPF_freq);
+            ext_force_hat[0] = J_trans_inv[0]*(ctrl_torque_s1[0]-(M[0][0])*theta_acc[0]);
+            ext_force_hat[1] = J_trans_inv[1]*(ctrl_torque_s1[0]-(M[0][0])*theta_acc[0]);
+            est_torque = - ctrl_torque_s1[0] + M[0][0]*theta_acc[0];
+        }
+
+
+        theta[2] = theta[1]; theta[1] = theta[0];
+        theta_vel[2] = theta_vel[1]; theta_vel[1] = theta_vel[0];
+        theta_acc[2] = theta_acc[1]; theta_acc[1] = theta_acc[0];
+        alpha[1] = alpha[0];
+        beta[1] = beta[0];
+        u_d[2] = u_d[1]; u_d[1] = u_d[0];
+        ctrl_torque[1] = ctrl_torque[0]; 
+        ctrl_torque_s1[1] = ctrl_torque_s1[0]; 
+        ctrl_torque_s2[1] = ctrl_torque_s2[0]; 
     }
 
     if (loop_index % data_frequency == 0) {     // loop_index를 data_frequency로 나눈 나머지가 0이면 데이터를 저장.

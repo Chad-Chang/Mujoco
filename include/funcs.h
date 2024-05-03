@@ -35,7 +35,10 @@ double LPF_freq = 30;
 double perturb; // disturbance
 float amplitude_perturb = 5;
 bool dob_switch = 1; 
-
+double ext_force[2] = {0}; // external force(x,y)
+double ext_force_hat[2] = {0};
+double l_force = 1; // 힘이 작용하는 길이 (x^2 + y^2 = l^2) 
+double est_torque =0;
 char filename[] = "double_pendulum.xml";
 char datafile[] = "data/DOB.csv";
 
@@ -163,7 +166,8 @@ void init_save_data() // csv파일의 데이터 명을 지정하는 함수 -> �
     //write name of the variable here (header)
     fprintf(fid, "t, ");
     fprintf(fid, "dist, e_dist, dist_err, "); // disturbace error
-    fprintf(fid, "input, output, error, gravity compensation"); // reference error
+    fprintf(fid, "input, output, error, gravity compensation,"); // reference error
+    fprintf(fid,  "ext_force_x_hat, ext_force_y_hat, torque_hat,");
 
     //Don't remove the newline
     fprintf(fid, "\n");
@@ -178,6 +182,7 @@ void save_data(const mjModel* m, mjData* d)
     fprintf(fid, "%f, ", d->time);
     fprintf(fid, "%f, %f, %f, ", perturb, d_hat[0], perturb- d_hat[0]);
     fprintf(fid, "%f, %f, %f, %f, ", ref,d-> qpos[0], ref - d-> qpos[0],0.5*G*sin(d->qpos[0]));
+    fprintf(fid, "%f,%f,%f,", ext_force_hat[0], ext_force_hat[1], est_torque);
 
     //Don't remove the newline
     fprintf(fid, "\n");

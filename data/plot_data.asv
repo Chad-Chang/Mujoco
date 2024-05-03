@@ -62,8 +62,8 @@ plot(T.t, T.dist,'r');
 hold on 
 plot(T.t, T.torque_hat,'b-');
 hold on 
-plot(T.t, Arr(:,4), ' k-');
-legend("disturbance", "estimated torque", "disturbance error");
+plot(T.t, T.)
+legend("disturbance", "estimated torque");
 % plot(T.t, T.dist-T.torque_hat,'-');
 % hold on 
 % plot(T.t, T.dist_err-T.torque_hat,'k-');
