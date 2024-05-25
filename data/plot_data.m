@@ -30,14 +30,14 @@ Arr = table2array(T(:,1:data_length));
 % grid on 
 % ylim([-10,10]);
 % 
-% figure(2)
-% subplot(2,1,1);
-% plot(Arr(:,1),Arr(:,5),'b.');
-% hold on 
-% plot(Arr(:,1),Arr(:,6),'r.');
-% grid on 
-% legend("input", "output" );
-% title("input and output");
+figure(2)
+subplot(2,1,1);
+plot(Arr(:,1),Arr(:,5),'b.');
+hold on 
+plot(Arr(:,1),Arr(:,6),'r.');
+grid on 
+legend("input", "output" );
+title("input and output");
 % 
 % subplot(2,1,2);
 % plot(Arr(:,1),Arr(:,7),'k.');
@@ -76,17 +76,17 @@ Arr = table2array(T(:,1:data_length));
 % title("torque estimation")
 % ylim([-10,10]);
 
-figure(4)
-subplot(2,1,1)
-plot(Arr(:,1), Arr(:,6), 'r-');
-hold on 
-plot(Arr(:,1), Arr(:,13), 'b-');
-hold on 
-plot(Arr(:,1), Arr(:,12), 'k-');
-hold on
-grid on 
-legend("q_pos", "delta_x", "reference");
-title("admittance control")
+% figure(4)
+% subplot(2,1,1)
+% plot(Arr(:,1), Arr(:,6), 'r-');
+% hold on 
+% plot(Arr(:,1), Arr(:,13), 'b-');
+% hold on 
+% plot(Arr(:,1), Arr(:,12), 'k-');
+% hold on
+% grid on 
+% legend("q_pos", "delta_x", "reference");
+% title("admittance control")
 
 
 

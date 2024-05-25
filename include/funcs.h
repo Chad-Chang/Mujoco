@@ -18,6 +18,9 @@
 
 #define pi 3.141592
 
+
+double theta_des =  -pi/2;
+double theta_acc_des = 0;
 const double t_hold = 0.5; 
 const double t_swing1 = 1;
 const double t_swing2 = 1;
@@ -31,7 +34,7 @@ double theta_acc[3] = {0};
 double u_d[3] = {0}; // uc_- u_d
 double theta_vel[3] = {0};
 double dist_freq = 1;
-double LPF_freq = 30;
+double LPF_freq = 200;
 double perturb; // disturbance
 float amplitude_perturb = 5;
 bool dob_switch = 1; 
@@ -53,7 +56,7 @@ mjvScene scn;                       // abstract scene
 mjrContext con;                     // custom GPU context
 
 // Simulation End Time
-double simend = 5;
+double simend = 10;
 // const int nv = 2; // DoF of system 
 
 // Data Writing
@@ -170,6 +173,7 @@ void init_save_data() // csv파일의 데이터 명을 지정하는 함수 -> �
     fprintf(fid, "dist, e_dist, dist_err, "); // disturbace error
     fprintf(fid, "input, output, error, gravity compensation,"); // reference error
     fprintf(fid,  "ext_force_x_hat, ext_force_y_hat, torque_hat, ref, admittance,");
+    
 
     //Don't remove the newline
     fprintf(fid, "\n");
@@ -183,7 +187,7 @@ void save_data(const mjModel* m, mjData* d)
     //seperate data by a space %f followed by space
     fprintf(fid, "%f, ", d->time);
     fprintf(fid, "%f, %f, %f, ", perturb, d_hat[0], perturb- d_hat[0]);
-    fprintf(fid, "%f, %f, %f, %f, ", ref,d-> qpos[0], ref - d-> qpos[0],0.5*G*sin(d->qpos[0]));
+    fprintf(fid, "%f, %f, %f, %f, ", theta_des, d-> qpos[0], ref - d-> qpos[0],0.5*G*sin(d->qpos[0]));
     fprintf(fid, "%f,%f,%f,%f, %f", ext_force_hat[0], ext_force_hat[1], est_torque[0], ref, admi);
 
     //Don't remove the newline

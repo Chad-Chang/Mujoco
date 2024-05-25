@@ -1,7 +1,7 @@
 // #pragma once
 
 #include "funcs.h" // 사용자 정의 헤더파일 <>하면 안됨.
-
+// namspace std
 PID pid1;
 PID pid2;
 struct ParamModel_{
@@ -43,7 +43,7 @@ double ctrl_torque_s1[3] =  {0};
 double ctrl_torque_s2[3] =  {0};
 double delta_pos[3] = {0}; 
 double mass = 1; 
-
+double nominal_plant = 0;
 
 void admittance(double input, double input_old1, double input_old2, double output_old1, double output_old2, double K,double zeta, double wn)
 {    
@@ -52,7 +52,7 @@ void admittance(double input, double input_old1, double input_old2, double outpu
     double denominator  = (4/pow(Ts,2) +4*wn*zeta/Ts + pow(Ts,2));
     admi = nominator / denominator;
     delta_pos[0] = admi;
-    printf("admittance = %f\n", admi);
+    // printf("admittance = %f\n", admi);
 }
 void admittance2(double input, double input_old1, double input_old2, double output_old1, double output_old2, double J,double B, double K)
 {   
@@ -71,24 +71,37 @@ void admittance3(double delta_force, double K)
     printf("delta_pos = %f, %f\n", admi, delta_force);
 }
 
-
 void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
-{
+{   
     double u_g = 0.5*G*sin(d->qpos[0]);
+
+        
     // delta_pos[0] = -pi/2 - d->qpos[0];
 // single pendulum
     if(loop_index % contol_loop ==0) // sampling time 0.0001
     {   
+        double M[ndof][ndof] = { 0 };   // 2x2 inertia matrix -> 알아서 계산해줌.
+        mj_fullM(m, dense_M, d->qM);
         
+        M[0][0] = dense_M[0];
+        M[0][1] = dense_M[1];
+        M[1][0] = dense_M[2];
+        M[1][1] = dense_M[3];
+        printf("%f,%f,%f,%f\n", M[0][0], M[0][1], M[1][0], M[1][1]);
+        // nominal_plant = M[0][0];
         perturb = amplitude_perturb*sin(dist_freq*2*pi*d->time);
         // loop_tcheck();
+
         perturb = 0;
+
+        ref = theta_des;
+
         err = ref - theta[0];
         pid1.set_gain(15,0,1);
             // control torque 
         u_c = pid1.compute_PID(err,err_old, Ts, cutoff);
         u_d[0] = u_c-d_hat[0];
-        d->ctrl[0] = u_d[0] + perturb - u_g;//u_d[0] ;
+        d->ctrl[0] = u_d[0] + perturb - u_g;// - u_g;//u_d[0] ;
         ctrl_torque[0]= u_d[0];
 
         ref = -pi/2;
@@ -101,17 +114,12 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
         theta_acc[0] = tustin_derivative(theta_vel[0],theta_vel[1], theta_acc[1], LPF_freq);
         alpha[0] = lowpassfilter(u_d[0], u_d[1], alpha[1], LPF_freq);
 
-        mj_fullM(m, dense_M, d->qM);
-        double M[ndof][ndof] = { 0 };   // 2x2 inertia matrix -> 알아서 계산해줌.
-        M[0][0] = dense_M[0];
-        M[0][1] = dense_M[1];
-        M[1][0] = dense_M[2];
-        M[1][1] = dense_M[3];
+        
 
         if(dob_switch)
         {
-            // d_hat[0] = (0.25+0.5*M[0][0])*theta_acc[0]-beta[0];
-            d_hat[0] = (M[0][0])*theta_acc[0]-alpha[0];
+            d_hat[0] = (0.25+0.5*M[0][0])*theta_acc[0]-beta[0];
+            // printf("disturb = %f, gravity = %f, error = %f \n", d_hat[0], u_g, d_hat[0]- u_g);
         }
 
         if(fob)
@@ -122,14 +130,12 @@ void mycontroller(const mjModel* m, mjData* d)  // 제어주기 0.000025임
             ext_force_hat[0] = J_trans_inv[0]*(ctrl_torque_s1[0]-(M[0][0])*theta_acc[0]);
             ext_force_hat[1] = J_trans_inv[1]*(ctrl_torque_s1[0]-(M[0][0])*theta_acc[0]);
             est_torque[0] = - ctrl_torque_s1[0] + M[0][0]*theta_acc[0];
-            // est_torque[0] = 30 ;// cos(2*pi**d->time);
+            est_torque[0] = 30;// cos(2*pi**d->time);
             
-            // if(d->time >3) est_torque[0] = 0;
+            if(d->time >3) est_torque[0] = 0;
             admittance(est_torque[0], est_torque[1], est_torque[2],delta_pos[1], delta_pos[2], 100, 0.5, 100);  // 고유진동수, 
-            // admittance2(est_torque[0], est_torque[1], est_torque[2],delta_pos[1], delta_pos[2], 0.01, 1, 100); 
             
-            // admittance2()
-            ref = ref + delta_pos[0];
+            // ref = ref + delta_pos[0];
 
 
             est_torque[2] = est_torque[1]; est_torque[1] = est_torque[0];
@@ -164,7 +170,7 @@ int main(int argc, const char** argv)
     // activate software
     mj_activate("mjkey.txt");
 
-
+    
     // load and compile model
     char error[1000] = "Could not load binary model";
 
@@ -226,6 +232,7 @@ int main(int argc, const char** argv)
 
 // 초기 각도 입력
     d->qpos[0] = -pi/3;   // joint 1 - HFE
+
     // d -> qpos[1] = pi/2;
     //d->qpos[1] = 0.5;   // joint 2 - KFE
     theta[0] = d->qpos[0];
